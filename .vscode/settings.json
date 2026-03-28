@@ -1,0 +1,28 @@
+{
+  "files.exclude": {
+    "node_modules": true,
+    "vscode-extension": true,
+    "server": true,
+    "client": true,
+    "package.json": true,
+    "package-lock.json": true,
+    "tsconfig.json": true,
+    "README.md": true,
+    ".gitignore": true,
+    ".vscode": true,
+    "server/src": true,
+    "server/dist": true,
+    "server/package.json": true,
+    "server/tsconfig.json": true,
+    "client/src": true,
+    "client/public": true,
+    "client/package.json": true,
+    "client/tsconfig.json": true,
+    "bravo": true,
+    "brain": true,
+    ".gemini": true,
+    ".DS_Store": true
+  },
+  "workbench.editor.closeOnClick": true,
+  "workbench.activityBar.location": "default"
+}

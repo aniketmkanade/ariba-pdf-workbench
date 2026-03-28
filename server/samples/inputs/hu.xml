@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<HU huID="HU-001">
+  <PackingType>Pallet</PackingType>
+  <Items>
+    <Item>BOX-1</Item>
+    <Item>BOX-2</Item>
+  </Items>
+</HU>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <InvoiceHeader>
+    <InvoiceID>INV-2024-001</InvoiceID>
+    <Date>2024-03-27</Date>
+    <CustomerName>Enterprise Solutions Ltd.</CustomerName>
+  </InvoiceHeader>
+  <Items>
+    <Item>
+      <LineNum>1</LineNum>
+      <Description>High-End Server Node (Dual Xeon)</Description>
+      <Quantity>120</Quantity>
+      <UnitPrice>1500.00</UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>2</LineNum>
+      <Description>Managed Switch 48-Port (10GbE)</Description>
+      <Quantity>45</Quantity>
+      <UnitPrice>850.50</UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>3</LineNum>
+      <Description>Cat6a Cabling (100m Roll)</Description>
+      <Quantity>250</Quantity>
+      <UnitPrice></UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>4</LineNum>
+      <Description>Network Fiber Optic Module 100m</Description>
+      <Quantity>85</Quantity>
+      <UnitPrice>350.00</UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>5</LineNum>
+      <Description>Dell PowerEdge Rack Cabinet 42U</Description>
+      <Quantity>12</Quantity>
+      <UnitPrice>2200.00</UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>6</LineNum>
+      <Description>Uninterruptible Power Supply 20kVA</Description>
+      <Quantity>8</Quantity>
+      <UnitPrice></UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>7</LineNum>
+      <Description>Enterprise SSD 2TB NVMe</Description>
+      <Quantity>105</Quantity>
+      <UnitPrice>450.00</UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>8</LineNum>
+      <Description>Memory Module 64GB DDR5 RDIMM</Description>
+      <Quantity>200</Quantity>
+      <UnitPrice>280.00</UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>9</LineNum>
+      <Description>GPU Computing Module (A100 80GB)</Description>
+      <Quantity>6</Quantity>
+      <UnitPrice>10500.00</UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>10</LineNum>
+      <Description>Data Center Monitoring Software License</Description>
+      <Quantity>1</Quantity>
+      <UnitPrice></UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>11</LineNum>
+      <Description>Network Cable Management Kit (1000 qty)</Description>
+      <Quantity>150</Quantity>
+      <UnitPrice>45.00</UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>12</LineNum>
+      <Description>Environmental Control Unit 5-Zone</Description>
+      <Quantity>20</Quantity>
+      <UnitPrice>3500.00</UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>13</LineNum>
+      <Description>Infrastructure Patch Panel 96 Port</Description>
+      <Quantity>160</Quantity>
+      <UnitPrice>120.00</UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>14</LineNum>
+      <Description>Enterprise Security Appliance</Description>
+      <Quantity>10</Quantity>
+      <UnitPrice>5000.00</UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>15</LineNum>
+      <Description>Network Interface Card 25GbE</Description>
+      <Quantity>110</Quantity>
+      <UnitPrice>650.00</UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>16</LineNum>
+      <Description>Backup Storage Array Controller Unit</Description>
+      <Quantity>4</Quantity>
+      <UnitPrice>2850.00</UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>17</LineNum>
+      <Description>Premium Installation and Configuration Service</Description>
+      <Quantity>1</Quantity>
+      <UnitPrice>15000.00</UnitPrice>
+    </Item>
+    <Item>
+      <LineNum>18</LineNum>
+      <Description>Extended Hardware Warranty 5-Year</Description>
+      <Quantity>1</Quantity>
+      <UnitPrice></UnitPrice>
+    </Item>
+  </Items>
+  <Total>1345287.50</Total>
+  <Notes>Items with N/A pricing require immediate attention. Quantities over 100 units are highlighted in yellow for bulk order verification.</Notes>
+</Invoice>

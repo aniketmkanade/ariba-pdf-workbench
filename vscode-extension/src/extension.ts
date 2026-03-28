@@ -1,0 +1,267 @@
+import * as vscode from 'vscode';
+import axios from 'axios';
+import { TextDecoder } from 'util';
+import * as path from 'path';
+import * as child_process from 'child_process';
+import { XMLParser } from 'fast-xml-parser';
+import { AribaSnippetProvider } from './snippets';
+
+let currentPanel: vscode.WebviewPanel | undefined;
+let debounceTimeout: NodeJS.Timeout | undefined;
+let currentXmlUri: vscode.Uri | undefined;
+let serverProcess: child_process.ChildProcess | undefined;
+
+const PORT = 3001;
+const API_URL = `http://localhost:${PORT}/api/preview`;
+const OLLAMA_URL = 'http://localhost:11434/api/generate';
+
+const SAMPLE_XML = `<PurchaseOrder orderID="PO-12345" orderDate="2023-10-27" currency="USD">
+  <Supplier><Name>Acme Corp</Name></Supplier>
+  <Buyer><Name>Global Industries</Name></Buyer>
+  <LineItems>
+    <LineItem lineNumber="1">
+      <Description>Widget A</Description>
+      <Quantity unit="EA">100</Quantity>
+      <UnitPrice>10.50</UnitPrice>
+    </LineItem>
+  </LineItems>
+</PurchaseOrder>`;
+
+export function activate(context: vscode.ExtensionContext) {
+  console.log('Ariba PDF Elite Extension Active!');
+
+  startBackendServer(context);
+
+  const samplesPath = path.join(context.extensionPath, '..', 'server', 'samples');
+  const inputsPath = path.join(samplesPath, 'inputs');
+  
+  const sampleProvider = new AribaSampleProvider(inputsPath);
+  vscode.window.registerTreeDataProvider('ariba-pdf-samples', sampleProvider);
+
+  const snippetProvider = new AribaSnippetProvider();
+  vscode.window.registerTreeDataProvider('ariba-pdf-snippets', snippetProvider);
+
+  // --- AI Chat Logic ---
+  const aribaChat = vscode.chat.createChatParticipant('ariba-pdf-preview.ariba', async (request, context, response, token) => {
+    const userPrompt = request.prompt;
+    let systemInstruction = `You are the Ariba PDF Expert. You generate high-quality XSL-FO 1.1.`;
+    
+    if (request.command === 'table') {
+        systemInstruction += ` Focus on generating a professional <fo:table> with headers and dynamic xsl:for-each rows.`;
+        response.progress('Designing your professional FO table...');
+    }
+
+    try {
+      const res = await axios.post(OLLAMA_URL, {
+        model: 'mistral',
+        prompt: `${systemInstruction}\nUser: ${userPrompt}\nAssistant:`,
+        stream: false
+      });
+      response.markdown(res.data.response);
+      response.button({ command: 'ariba-pdf-preview.applyXslt', title: 'Apply Proposed Layout', arguments: [res.data.response] });
+    } catch (err: any) {
+      response.markdown(`❌ AI Service Offline. Ensure Ollama is running.`);
+    }
+  });
+
+  // --- Core Commands ---
+  let openPreviewCmd = vscode.commands.registerCommand('ariba-pdf-preview.openPreview', () => {
+    if (currentPanel) {
+      currentPanel.reveal(vscode.ViewColumn.Beside);
+    } else {
+      currentPanel = vscode.window.createWebviewPanel('pdfPreview', 'Ariba PDF Workbench', vscode.ViewColumn.Beside, { enableScripts: true, retainContextWhenHidden: true });
+      currentPanel.onDidDispose(() => { currentPanel = undefined; vscode.commands.executeCommand('setContext', 'pdfPreviewActive', false); });
+      vscode.commands.executeCommand('setContext', 'pdfPreviewActive', true);
+
+      currentPanel.webview.onDidReceiveMessage(message => {
+        switch (message.command) {
+          case 'refresh': triggerPreviewUpdate(); return;
+          case 'export': vscode.commands.executeCommand('ariba-pdf-preview.exportPdf'); return;
+          case 'view-external': vscode.commands.executeCommand('ariba-pdf-preview.viewExternal'); return;
+        }
+      });
+      triggerPreviewUpdate();
+    }
+  });
+
+  let viewExternalCmd = vscode.commands.registerCommand('ariba-pdf-preview.viewExternal', async () => {
+    if (!currentPanel) return;
+    const tempPdfUri = vscode.Uri.file(path.join(context.extensionPath, 'vsc-temp-preview.pdf'));
+    await performExport(tempPdfUri);
+    await vscode.env.openExternal(tempPdfUri);
+  });
+
+  let exportPdfCmd = vscode.commands.registerCommand('ariba-pdf-preview.exportPdf', async () => {
+    const saveUri = await vscode.window.showSaveDialog({ filters: { 'PDF files': ['pdf'] }, defaultUri: vscode.Uri.file(path.join(samplesPath, 'outputs', 'invoice-output.pdf')) });
+    if (saveUri) await performExport(saveUri);
+  });
+
+  let refreshSamplesCmd = vscode.commands.registerCommand('ariba-pdf-preview.refreshSamples', () => {
+    sampleProvider.refresh();
+  });
+
+  let uploadXmlCmd = vscode.commands.registerCommand('ariba-pdf-preview.uploadXml', async () => {
+    const uris = await vscode.window.showOpenDialog({ canSelectMany: false, filters: { 'XML files': ['xml'] } });
+    if (uris && uris.length > 0) {
+      const dest = vscode.Uri.file(path.join(inputsPath, path.basename(uris[0].fsPath)));
+      await vscode.workspace.fs.copy(uris[0], dest, { overwrite: true });
+      sampleProvider.refresh();
+    }
+  });
+
+  let finalizeTaskCmd = vscode.commands.registerCommand('ariba-pdf-preview.finalizeTask', async () => {
+    const folderUri = await vscode.window.showOpenDialog({ canSelectFiles: false, canSelectFolders: true });
+    if (folderUri && folderUri.length > 0) {
+        const baseDir = folderUri[0];
+        await performExport(vscode.Uri.file(path.join(baseDir.fsPath, 'final_document.pdf')));
+        vscode.window.showInformationMessage('Task Finalized and Results Exported.');
+    }
+  });
+
+  let resetWorkspaceCmd = vscode.commands.registerCommand('ariba-pdf-preview.resetWorkspace', async () => {
+    const confirm = await vscode.window.showWarningMessage('Reset all current task data?', { modal: true }, 'Yes');
+    if (confirm === 'Yes') {
+        currentXmlUri = undefined;
+        sampleProvider.refresh();
+        if (currentPanel) currentPanel.dispose();
+    }
+  });
+
+  // --- Utility Commands ---
+  let insertSnippetCmd = vscode.commands.registerCommand('ariba-pdf-preview.insertSnippet', (snippet: string) => {
+    const activeEditor = vscode.window.activeTextEditor;
+    if (activeEditor) activeEditor.insertSnippet(new vscode.SnippetString(snippet));
+  });
+
+  let insertXPathCmd = vscode.commands.registerCommand('ariba-pdf-preview.insertXPath', (xpath: string) => {
+    const activeEditor = vscode.window.activeTextEditor;
+    if (activeEditor) activeEditor.insertSnippet(new vscode.SnippetString(`<xsl:value-of select="${xpath}"/>`));
+  });
+
+  let applyXsltCmd = vscode.commands.registerCommand('ariba-pdf-preview.applyXslt', async (newXslt: string) => {
+    const activeEditor = vscode.window.activeTextEditor;
+    if (activeEditor) {
+      const edit = new vscode.WorkspaceEdit();
+      edit.replace(activeEditor.document.uri, new vscode.Range(0, 0, activeEditor.document.lineCount, 0), newXslt);
+      await vscode.workspace.applyEdit(edit);
+    }
+  });
+
+  let openSampleCmd = vscode.commands.registerCommand('ariba-pdf-preview.openSample', (uri: vscode.Uri) => {
+    currentXmlUri = uri;
+    if (currentPanel) triggerPreviewUpdate();
+  });
+
+  context.subscriptions.push(
+    openPreviewCmd, viewExternalCmd, exportPdfCmd, refreshSamplesCmd, 
+    uploadXmlCmd, finalizeTaskCmd, resetWorkspaceCmd, 
+    insertSnippetCmd, insertXPathCmd, applyXsltCmd, openSampleCmd
+  );
+
+  // Status monitoring
+  vscode.workspace.onDidChangeTextDocument(e => { if (currentPanel && isRelevant(e.document)) triggerPreviewUpdate(); });
+  vscode.window.onDidChangeActiveTextEditor(e => { if (currentPanel && e && isRelevant(e.document)) triggerPreviewUpdate(); });
+}
+
+// --- Helpers ---
+async function performExport(uri: vscode.Uri): Promise<void> {
+  const activeEditor = vscode.window.activeTextEditor;
+  if (!activeEditor) return;
+  const xsltContent = activeEditor.document.getText();
+  let xmlContent = SAMPLE_XML;
+  if (currentXmlUri) {
+    const data = await vscode.workspace.fs.readFile(currentXmlUri);
+    xmlContent = new TextDecoder().decode(data);
+  }
+  try {
+    const res = await axios.post(API_URL, { xml: xmlContent, xslt: xsltContent }, { responseType: 'arraybuffer' });
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(res.data));
+  } catch (err: any) {
+    vscode.window.showErrorMessage(`Export failed: ${err.message}`);
+  }
+}
+
+function triggerPreviewUpdate() {
+  if (debounceTimeout) clearTimeout(debounceTimeout);
+  debounceTimeout = setTimeout(async () => {
+    if (!currentPanel) return;
+    const activeEditor = vscode.window.activeTextEditor;
+    if (!activeEditor) return;
+    const xsltContent = activeEditor.document.getText();
+    let xmlContent = SAMPLE_XML;
+    if (currentXmlUri) {
+        try {
+            const data = await vscode.workspace.fs.readFile(currentXmlUri);
+            xmlContent = new TextDecoder().decode(data);
+        } catch (e) { console.error('Failed to read XML'); }
+    }
+    try {
+      const res = await axios.post(API_URL, { xml: xmlContent, xslt: xsltContent }, { responseType: 'arraybuffer' });
+      const dataUri = `data:application/pdf;base64,${Buffer.from(res.data).toString('base64')}`;
+      currentPanel.webview.html = getWebviewContent(currentPanel.webview, dataUri);
+    } catch (e) { console.error('Preview failed'); }
+  }, 800);
+}
+
+function isRelevant(doc: vscode.TextDocument) { return doc.languageId === 'xsl' || doc.fileName.endsWith('.xsl'); }
+
+function startBackendServer(context: vscode.ExtensionContext) {
+  const serverPath = path.join(context.extensionPath, '..', 'server', 'dist', 'index.js');
+  serverProcess = child_process.spawn('node', [serverPath], { env: { ...process.env, PORT: PORT.toString() } });
+}
+
+function getWebviewContent(webview: vscode.Webview, pdfUri: string) {
+  const xmlName = currentXmlUri ? path.basename(currentXmlUri.fsPath) : 'SAMPLE_DATA';
+  return `<!DOCTYPE html><html lang="en"><head>
+  <style>
+    :root { --bg: #1e1e1e; --side: #252526; --accent: #007acc; --border: #444; --text: #cccccc; }
+    body { margin: 0; padding: 0; width: 100vw; height: 100vh; background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; flex-direction: column; overflow: hidden; }
+    .status { height: 24px; background: var(--accent); color: white; display: flex; align-items: center; padding: 0 12px; font-size: 11px; gap: 12px; }
+    .toolbar { height: 40px; background: var(--side); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 16px; gap: 8px; }
+    .spacer { flex: 1; }
+    .btn { background: #3c3c3c; border: 1px solid var(--border); color: white; padding: 4px 12px; border-radius: 2px; font-size: 11px; cursor: pointer; border: none; }
+    .btn:hover { background: #505050; }
+    .btn.primary { background: var(--accent); color: white; }
+    .preview { flex: 1; background: #525659; }
+    iframe { width: 100%; height: 100%; border: none; }
+  </style></head><body>
+  <div class="toolbar">
+    <div style="font-weight: bold; font-size: 12px; color: var(--accent);">ARIBA WORKBENCH v5.0</div>
+    <div style="background: #2d2d2d; border-radius: 4px; padding: 2px 8px; font-size: 9px; border: 1px solid var(--border); margin-left: 12px;">DATA: ${xmlName}</div>
+    <div class="spacer"></div>
+    <button class="btn" onclick="vscode.postMessage({command:'view-external'})">Open in Browser</button>
+    <button class="btn" onclick="vscode.postMessage({command:'export'})">Download PDF</button>
+    <button class="btn primary" onclick="vscode.postMessage({command:'refresh'})">Sync Now</button>
+  </div>
+  <div class="preview"><iframe src="${pdfUri}"></iframe></div>
+  <div class="status">
+    <span>CONNECTED: Ariba Elite Engine</span>
+    <span style="opacity: 0.6; margin-left: auto;">UTF-8 | PDF/X-1.1</span>
+  </div>
+  <script>const vscode = acquireVsCodeApi();</script>
+</body></html>`;
+}
+
+class AribaSampleProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
+  private _onDidChangeTreeData: vscode.EventEmitter<vscode.TreeItem | undefined | null | void> = new vscode.EventEmitter<vscode.TreeItem | undefined | null | void>();
+  readonly onDidChangeTreeData: vscode.Event<vscode.TreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
+  constructor(private path: string) {}
+  refresh(): void { this._onDidChangeTreeData.fire(); }
+  getTreeItem(element: vscode.TreeItem): vscode.TreeItem { return element; }
+  async getChildren(element?: vscode.TreeItem): Promise<vscode.TreeItem[]> {
+    if (!element) {
+        try {
+            const result = await vscode.workspace.fs.readDirectory(vscode.Uri.file(this.path));
+            return result.filter(([name]) => name.endsWith('.xml')).map(([name]) => {
+                const item = new vscode.TreeItem(name, vscode.TreeItemCollapsibleState.None);
+                item.iconPath = new vscode.ThemeIcon('database');
+                item.command = { command: 'ariba-pdf-preview.openSample', title: 'Open', arguments: [vscode.Uri.file(path.join(this.path, name))] };
+                return item;
+            });
+        } catch (e) { return []; }
+    }
+    return [];
+  }
+}
+
+export function deactivate() { if (serverProcess) serverProcess.kill(); }

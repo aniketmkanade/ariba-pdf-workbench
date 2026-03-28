@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PurchaseOrder orderID="PO-12345" orderDate="2024-03-27">
+  <Supplier>
+    <Name>Acme Corp</Name>
+    <Address>123 Main St, Anytown, CA 91234</Address>
+  </Supplier>
+  <Buyer>
+    <Name>Global Industries</Name>
+    <Address>456 Oak Ave, Metropolis, NY 10001</Address>
+  </Buyer>
+  <LineItems>
+    <LineItem lineNumber="1">
+      <Description>Widget A</Description>
+      <Quantity unit="EA">100</Quantity>
+      <UnitPrice>10.50</UnitPrice>
+      <TotalPrice>1050.00</TotalPrice>
+    </LineItem>
+    <LineItem lineNumber="2">
+      <Description>Gadget B</Description>
+      <Quantity unit="EA">50</Quantity>
+      <UnitPrice>25.00</UnitPrice>
+      <TotalPrice>1250.00</TotalPrice>
+    </LineItem>
+  </LineItems>
+  <TotalAmount>2300.00</TotalAmount>
+</PurchaseOrder>

@@ -1,0 +1,12 @@
+{
+  "name": "ariba-pdf-live-editor",
+  "version": "1.0.0",
+  "description": "AI-assisted XSLT/XSL-FO live preview editor for Ariba PDFs",
+  "private": true,
+  "scripts": {
+    "dev": "npm run package --prefix vscode-extension",
+    "build:server": "npm run build --prefix server",
+    "package:extension": "npm run package --prefix vscode-extension",
+    "install:all": "npm install --prefix server && npm install --prefix vscode-extension"
+  }
+}

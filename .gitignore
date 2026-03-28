@@ -1,0 +1,23 @@
+# Dependency Directories
+node_modules/
+jspm_packages/
+package-lock.json
+
+# Build Outputs
+dist/
+out/
+bin/
+*.vsix
+vsc-temp-preview.pdf
+
+# IDE Styles & Local Logic
+.vscode/
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ariba Task Artifacts
+server/samples/outputs/
+server/dist/

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ASN asnID="ASN-99887">
+  <ShipDate>2024-03-28</ShipDate>
+  <Items>
+    <Item line="1">
+      <PartNum>PN-776</PartNum>
+      <Qty>500</Qty>
+    </Item>
+  </Items>
+</ASN>

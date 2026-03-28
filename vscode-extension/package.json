@@ -1,0 +1,180 @@
+{
+  "name": "ariba-pdf-preview",
+  "displayName": "Ariba PDF Live Preview",
+  "description": "Live PDF Preview for Ariba XSL-FO templates",
+  "publisher": "sap-ariba-innovation",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "browser": "./dist/browser.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ariba-pdf-preview.openPreview",
+        "title": "Ariba: Open Live PDF Preview",
+        "icon": "$(layout-centered)"
+      },
+      {
+        "command": "ariba-pdf-preview.viewExternal",
+        "title": "View PDF in Browser",
+        "category": "Ariba PDF",
+        "icon": "$(browser)"
+      },
+      {
+        "command": "ariba-pdf-preview.insertSnippet",
+        "title": "Insert Ariba Snippet",
+        "category": "Ariba PDF"
+      },
+      {
+        "command": "ariba-pdf-preview.insertXPath",
+        "title": "Insert XPath Mapping",
+        "category": "Ariba PDF"
+      },
+      {
+        "command": "ariba-pdf-preview.selectXmlFile",
+        "title": "Ariba: Select XML Data File"
+      },
+      {
+        "command": "ariba-pdf-preview.selectSample",
+        "title": "Ariba: Select Sample Data"
+      },
+      {
+        "command": "ariba-pdf-preview.exportPdf",
+        "title": "Ariba: Export Final PDF",
+        "icon": "$(save)"
+      },
+      {
+        "command": "ariba-pdf-preview.uploadXml",
+        "title": "Ariba: Add My Data (Upload)",
+        "icon": "$(add)"
+      },
+      {
+        "command": "ariba-pdf-preview.refreshSamples",
+        "title": "Refresh Samples",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "ariba-pdf-preview.finalizeTask",
+        "title": "Finalize & Clear Task",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "ariba-pdf-preview.resetWorkspace",
+        "title": "New Task (Reset All)",
+        "icon": "$(trash)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "ariba-pdf-preview.refreshSamples",
+          "group": "navigation",
+          "when": "view == ariba-pdf-samples || view == ariba-pdf-snippets"
+        },
+        {
+          "command": "ariba-pdf-preview.uploadXml",
+          "group": "navigation",
+          "when": "view == ariba-pdf-samples"
+        },
+        {
+          "command": "ariba-pdf-preview.resetWorkspace",
+          "group": "navigation",
+          "when": "view == ariba-pdf-samples"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "ariba-pdf-preview.insertSnippet",
+          "when": "view == ariba-pdf-snippets",
+          "group": "inline"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "ariba-pdf-preview.openPreview",
+          "group": "navigation",
+          "when": "resourceExtname == .xsl || resourceExtname == .xslt"
+        },
+        {
+          "command": "ariba-pdf-preview.exportPdf",
+          "group": "navigation",
+          "when": "pdfPreviewActive"
+        },
+        {
+          "command": "ariba-pdf-preview.finalizeTask",
+          "group": "navigation",
+          "when": "pdfPreviewActive"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ariba-explorer",
+          "title": "Ariba PDF",
+          "icon": "$(file-pdf)"
+        }
+      ]
+    },
+    "views": {
+      "ariba-explorer": [
+        {
+          "id": "ariba-pdf-samples",
+          "name": "Data Explorer (XML)",
+          "icon": "$(database)"
+        },
+        {
+          "id": "ariba-pdf-snippets",
+          "name": "Professional Snippets (FO)",
+          "icon": "$(library)"
+        }
+      ]
+    },
+    "chatParticipants": [
+      {
+        "id": "ariba-pdf-preview.ariba",
+        "name": "ariba",
+        "description": "Expert Ariba PDF Assistant (Local AI)",
+        "commands": [
+          {
+            "name": "fix",
+            "description": "Fix alignment or logic in the current XSLT"
+          },
+          {
+            "name": "table",
+            "description": "Generate a robust table layout"
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "webpack": "webpack --mode development",
+    "webpack-dev": "webpack --mode development --watch",
+    "vsix": "npx vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "20.x",
+    "@types/vscode": "^1.110.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.4.5",
+    "webpack": "^5.91.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "@vscode/codicons": "^0.0.45",
+    "@vscode/webview-ui-toolkit": "^1.4.0",
+    "axios": "^1.7.2",
+    "fast-xml-parser": "^5.5.9"
+  }
+}
