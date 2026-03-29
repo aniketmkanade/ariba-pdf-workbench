@@ -1,7 +1,3 @@
 <Notes>
   <Note>This is a sample note text that is relatively short and should display normally without any truncation or highlighting.</Note>
-  <Note>This is a much longer note that contains extensive information about the shipping process, including details about packaging requirements, handling instructions, and special care needed for fragile items. It should be truncated to fit within three lines and end with ellipsis.</Note>
-  <Note>This note contains &lt;b&gt;HTML tags&lt;/b&gt; that should trigger highlighting and a warning indicator to alert users about potential formatting issues.</Note>
-  <Note>Another standard note without any special content or excessive length.</Note>
-  <Note>This is an extremely long note designed to test the truncation functionality thoroughly. It includes multiple sentences and detailed explanations that would normally exceed the three-line limit, demonstrating how the system handles overflow text by cutting it off appropriately and adding the ellipsis symbol at the end of the visible content.</Note>
 </Notes>
