@@ -64,7 +64,7 @@ STRICT RULES:
 3. Do not hard-code text values unless explicitly required.
 4. Do not add features not explicitly requested in the requirements.
 5. Use the simplest XSL-FO solution that satisfies the requirements.
-6. Use XSLT 1.0 only and generate valid standard XSL-FO inside the transformation.
+6. Use XSLT 1.0 only and generate valid standard XSL-FO inside the transformation. CRITICAL: Do NOT use XSLT 2.0 functions (e.g. current-date(), format-date(), date-time()). Only XSLT 1.0 constructs are allowed.
 7. Use correct FO structures such as: fo:root, fo:layout-master-set, fo:simple-page-master, fo:page-sequence, fo:static-content, fo:flow.
 8. When needed, use advanced FO features (page-number, page-number-citation, markers, conditional page masters, dynamic page sequences).
 9. Use A4 page size (21.0cm x 29.7cm) with 1.5cm margins.
