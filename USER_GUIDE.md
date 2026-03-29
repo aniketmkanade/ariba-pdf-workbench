@@ -15,7 +15,8 @@
 5. [Start the Backend Server](#5-start-the-backend-server)
 6. [Using the Workbench](#6-using-the-workbench)
 7. [Permissions Required](#7-permissions-required)
-8. [Troubleshooting](#8-troubleshooting)
+8. [AI Prompting Guide for Ariba XSL-FO](#8-ai-prompting-guide-for-ariba-xsl-fo)
+9. [Troubleshooting](#9-troubleshooting)
 
 ---
 
@@ -471,7 +472,34 @@ If your machine is managed by IT, you may need the following whitelisted:
 
 ---
 
-## 8. Troubleshooting
+## 8. AI Prompting Guide for Ariba XSL-FO
+
+To get the absolute best results from the local AI generator, follow these 4 golden rules:
+
+### 1. Use Exact XML Tag Names
+The AI maps variables by name. Being specific guarantees a perfect match:
+- ❌ **Don't say:** *"Add the tracking info to the header."*
+- ✅ **Do say:** *"Add the \`<TrackingNumber>\` and \`<Carrier>\` to the top right of the shipment header."*
+
+### 2. The Rule of "One Step at a Time"
+Local AI models perform best when given small, iterative tasks rather than massive lists.
+- ❌ **Don't say:** *"Redesign the whole document into a magazine layout, add 5 new columns, and delete the footer."*
+- ✅ **Do say:** *"First, change the table header background to \`#003366\` and text to white."* (Wait for generation) -> *"Great, now add a new column for \`<TaxAmount>\`."*
+
+### 3. Lean on Chat Memory
+The extension remembers your previous messages in the current session. If the AI makes a mistake, don't re-type your entire prompt! Correct it like a human colleague:
+- *"Wait, that made the table too wide, make the first column smaller."*
+- *"Actually, remove that bold styling."*
+
+### 4. Name the Visual Zones
+Because XSL-FO is highly layout-driven, tell the AI exactly *where* to put things:
+- *"Place this in the \`<fo:page-sequence>\` footer"*
+- *"Insert a new row inside the table body"*
+- *"Align this block to the right margin"*
+
+---
+
+## 9. Troubleshooting
 
 ### ❌ "Preview panel shows nothing"
 
