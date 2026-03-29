@@ -109,6 +109,7 @@ Please provide the updated XSLT code according to the rules.`;
       ],
       options: {
         temperature: 0.1,
+        num_ctx: 8192
       }
     });
 
