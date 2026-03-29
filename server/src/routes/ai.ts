@@ -9,7 +9,7 @@ const router = Router();
  * Returns: { success: true, xslt: string, message: string }
  */
 router.post('/chat', async (req: Request, res: Response) => {
-  const { prompt, xslt, xml } = req.body as { prompt?: string; xslt?: string; xml?: string };
+  const { prompt, xslt, xml, history } = req.body as { prompt?: string; xslt?: string; xml?: string; history?: any[] };
 
   if (!prompt || !xslt || !xml) {
     res.status(400).json({ success: false, error: 'prompt, xslt, and xml are required' });
@@ -17,8 +17,8 @@ router.post('/chat', async (req: Request, res: Response) => {
   }
 
   try {
-    const result = await generateXsltFromPrompt(prompt, xslt, xml);
-    res.json({ success: true, xslt: result.xslt, message: result.message, docType: result.docType });
+    const result = await generateXsltFromPrompt(prompt, xslt, xml, history);
+    res.json({ success: true, diffs: result.diffs, fullText: result.fullText, xslt: result.xslt, message: result.message, docType: result.docType });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message || 'AI generation failed' });
   }

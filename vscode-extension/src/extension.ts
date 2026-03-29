@@ -59,19 +59,30 @@ export function activate(context: vscode.ExtensionContext) {
     const userPrompt = request.prompt;
     response.progress('Ariba PDF AI is analyzing your template and data...');
 
+    const history: any[] = [];
+    for (const msg of context.history) {
+        if ('prompt' in msg) {
+            history.push({ role: 'user', content: (msg as any).prompt });
+        } else if ('response' in msg) {
+            const content = (msg as any).response.map((r: any) => r.value?.value || r.value || '').join('\n');
+            history.push({ role: 'assistant', content });
+        }
+    }
+
     try {
       const res = await axios.post(`http://localhost:${PORT}/api/ai/chat`, {
         prompt: userPrompt,
         xslt,
-        xml
+        xml,
+        history
       });
       
-      const { xslt: newXslt, message } = res.data;
+      const { xslt: newXslt, message, diffs, fullText } = res.data;
       response.markdown(`${message}\n\n`);
       response.button({ 
         command: 'ariba-pdf-preview.applyXslt', 
         title: 'Apply Optimized Layout', 
-        arguments: [newXslt] 
+        arguments: [{ newXslt, diffs, fullText }] 
       });
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message;
@@ -197,11 +208,37 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
-  let applyXsltCmd = vscode.commands.registerCommand('ariba-pdf-preview.applyXslt', async (newXslt: string) => {
+  let applyXsltCmd = vscode.commands.registerCommand('ariba-pdf-preview.applyXslt', async (payload: any) => {
     const activeEditor = vscode.window.activeTextEditor;
     if (activeEditor && isRelevant(activeEditor.document)) {
       const edit = new vscode.WorkspaceEdit();
-      edit.replace(activeEditor.document.uri, new vscode.Range(0, 0, activeEditor.document.lineCount, 0), newXslt);
+      const document = activeEditor.document;
+
+      if (typeof payload === 'string') {
+          // Backward compatibility
+          edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), payload);
+      } else if (payload.fullText || !payload.diffs || payload.diffs.length === 0) {
+          // Full replacement override from AI fallback
+          edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), payload.newXslt);
+      } else {
+          // Diff application
+          const text = document.getText();
+          let missingDiffs = 0;
+          for (const diff of payload.diffs) {
+              const searchIndex = text.indexOf(diff.search);
+              if (searchIndex !== -1) {
+                  const startPos = document.positionAt(searchIndex);
+                  const endPos = document.positionAt(searchIndex + diff.search.length);
+                  edit.replace(document.uri, new vscode.Range(startPos, endPos), diff.replace);
+              } else {
+                  missingDiffs++;
+              }
+          }
+          if (missingDiffs > 0) {
+              vscode.window.showWarningMessage(`Could not cleanly apply ${missingDiffs} patch(es). The document may have changed.`);
+          }
+      }
+      
       await vscode.workspace.applyEdit(edit);
     } else {
         vscode.window.showErrorMessage('Cannot apply XSLT. Please focus an active XSLT file.');

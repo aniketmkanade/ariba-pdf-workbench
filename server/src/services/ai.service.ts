@@ -46,8 +46,9 @@ function detectDocumentType(xml: string): { type: 'ASN' | 'HU' | 'PO' | 'UNKNOWN
 export async function generateXsltFromPrompt(
   prompt: string,
   currentXslt: string,
-  sampleXml: string
-): Promise<{ xslt: string; message: string; docType?: string }> {
+  sampleXml: string,
+  history: any[] = []
+): Promise<{ xslt: string; message: string; docType?: string; diffs?: {search: string, replace: string}[]; fullText?: boolean }> {
   
   const { type, guidance } = detectDocumentType(sampleXml);
 
@@ -68,20 +69,27 @@ STRICT RULES:
 8. When needed, use advanced FO features (page-number, page-number-citation, markers, conditional page masters, dynamic page sequences).
 9. Use A4 page size (21.0cm x 29.7cm) with 1.5cm margins.
 10. CRITICAL RULE: Under NO circumstances should you output, alter, or mock input XML data. Do not hallucinate extra line items. Your ONE AND ONLY job is to write the dynamic XSLT stylesheet. If the data lacks items to test pagination, write an XSLT loop that behaves correctly when elements *do* exist, but NEVER return XML data.
-11. Always output the FULL, updated XSLT codebase. Do not output partial snippets — your XSLT code block will directly replace the user's file.
+11. CRITICAL RULE: You must output ONLY SEARCH/REPLACE blocks. Do NOT output the entire XSLT file. Use this exact syntax to specify what to change:
+<<<<
+[exact lines to replace, including exact whitespace]
+====
+[new lines to insert]
+>>>>
 
 Output format:
 1. Brief explanation of the approach and notes about how the requirements are satisfied (max 3 sentences).
-2. A single markdown code block containing the complete XSLT stylesheet.
+2. One or more SEARCH/REPLACE blocks.
 
 Example format:
 I've updated the table to support dynamic pagination across multiple pages and applied the required headers.
 
-\`\`\`xml
-<xsl:stylesheet version="1.0" xmlns:xsl="..." xmlns:fo="...">
-  ... (complete code) ...
-</xsl:stylesheet>
-\`\`\`
+<<<<
+    <fo:table-row>
+      <fo:table-cell>
+====
+    <fo:table-row border-bottom="1pt solid black">
+      <fo:table-cell background-color="#f0f0f0">
+>>>>
 `;
 
   const userInstruction = `
@@ -105,6 +113,7 @@ Please provide the updated XSLT code according to the rules.`;
       model: 'qwen2.5-coder:7b',
       messages: [
         { role: 'system', content: systemInstruction },
+        ...history,
         { role: 'user', content: userInstruction }
       ],
       options: {
@@ -118,25 +127,37 @@ Please provide the updated XSLT code according to the rules.`;
       throw new Error('No text returned from local AI');
     }
 
-    // Extract code block and message
+    // Parse SEARCH/REPLACE blocks
+    const diffs: {search: string, replace: string}[] = [];
+    const diffRegex = /<<<<\n([\s\S]*?)\n====\n([\s\S]*?)\n>>>>/g;
+    let m;
+    while ((m = diffRegex.exec(text)) !== null) {
+      diffs.push({ search: m[1], replace: m[2] });
+    }
+
+    if (diffs.length > 0) {
+      const message = text.replace(/<<<<[\s\S]*?>>>>/g, '').trim();
+      return { xslt: currentXslt, message: message || 'Applied patches.', docType: type, diffs, fullText: false };
+    }
+
+    // Fallback code block
     const codeBlockRegex = /```(?:xml|xslt)?\n([\s\S]*?)```/;
     const match = codeBlockRegex.exec(text);
     
-    if (!match) {
-      if (text.trim().startsWith('<?xml')) {
-         return { xslt: text, message: 'Updated the XSLT template.', docType: type };
-      }
-      throw new Error('Could not extract XSLT code block from the response.');
+    if (match) {
+      const xsltContent = match[1].trim();
+      const message = text.replace(match[0], '').trim();
+      return { 
+        xslt: xsltContent, 
+        message: message || `Generated a professional ${type} template using Local AI.`,
+        docType: type,
+        fullText: true
+      };
+    } else if (text.trim().startsWith('<?xml')) {
+      return { xslt: text, message: 'Updated the XSLT template.', docType: type, fullText: true };
     }
 
-    const xsltContent = match[1].trim();
-    const message = text.replace(match[0], '').trim();
-
-    return { 
-      xslt: xsltContent, 
-      message: message || `Generated a professional ${type} template using Local AI.`,
-      docType: type
-    };
+    return { xslt: currentXslt, message: text.trim(), docType: type, diffs: [], fullText: false };
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
