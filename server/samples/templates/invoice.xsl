@@ -36,10 +36,25 @@
 
   <!-- Root template -->
   <xsl:template match="/Invoice">
+    <xsl:variable name="pageMaster">
+      <xsl:choose>
+        <xsl:when test="count(Items/Item) > 15">landscape</xsl:when>
+        <xsl:otherwise>portrait</xsl:otherwise>
+      </xsl:choose>
+    </xsl:variable>
     <fo:root xmlns:fo="http://www.w3.org/1999/XSL/Format">
       <!-- Define page layout -->
       <fo:layout-master-set>
-        <fo:simple-page-master master-name="letter" page-height="11in" page-width="8.5in"
+        <!-- Portrait page master -->
+        <fo:simple-page-master master-name="portrait" page-height="11in" page-width="8.5in"
+                               margin-top="0.45in" margin-bottom="0.5in" 
+                               margin-left="0.45in" margin-right="0.45in">
+          <fo:region-body margin-top="0.85in" margin-bottom="0.6in"/>
+          <fo:region-before extent="0.75in" region-name="xsl-region-before"/>
+          <fo:region-after extent="0.5in" region-name="xsl-region-after"/>
+        </fo:simple-page-master>
+        <!-- Landscape page master -->
+        <fo:simple-page-master master-name="landscape" page-height="8.5in" page-width="11in"
                                margin-top="0.45in" margin-bottom="0.5in" 
                                margin-left="0.45in" margin-right="0.45in">
           <fo:region-body margin-top="0.85in" margin-bottom="0.6in"/>
@@ -47,11 +62,9 @@
           <fo:region-after extent="0.5in" region-name="xsl-region-after"/>
         </fo:simple-page-master>
       </fo:layout-master-set>
-
+      
       <!-- Page sequence -->
-      <fo:page-sequence master-reference="letter">
-        
-        <!-- Header with invoice info -->
+      <fo:page-sequence master-reference="{$pageMaster}">
         <fo:static-content flow-name="xsl-region-before">
           <fo:block font-size="14pt" font-weight="bold" margin-bottom="3pt" color="#1a4d99">
             INVOICE

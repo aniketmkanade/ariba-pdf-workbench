@@ -40,7 +40,7 @@ async function applyXslt(xmlContent, xsltContent, tmpDir) {
     await fs_1.default.promises.writeFile(xmlFile, xmlContent, 'utf8');
     await fs_1.default.promises.writeFile(xsltFile, xsltContent, 'utf8');
     try {
-        await execFileAsync('xsltproc', ['-o', foFile, xsltFile, xmlFile]);
+        await execFileAsync('xsltproc', ['--nonet', '-o', foFile, xsltFile, xmlFile]);
     }
     catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -59,29 +59,35 @@ async function foToPdf(foContent, tmpDir) {
     await fs_1.default.promises.writeFile(foFile, foContent, 'utf8');
     // Try Apache FOP first
     try {
-        await execFileAsync('fop', ['-fo', foFile, '-pdf', pdfFile]);
+        await execFileAsync('fop', ['-fo', foFile, '-pdf', pdfFile], { env: process.env });
         return await fs_1.default.promises.readFile(pdfFile);
     }
-    catch {
-        // FOP not installed - try fop from common install locations
+    catch (e) {
+        // FOP not in PATH - try fop from common install locations
+        const isWin = process.platform === 'win32';
+        const fopCmd = isWin ? 'fop.bat' : 'fop';
         const fopPaths = [
             '/usr/local/bin/fop',
             '/opt/homebrew/bin/fop',
-            process.env.FOP_HOME ? path_1.default.join(process.env.FOP_HOME, 'fop') : '',
+            process.env.FOP_HOME ? path_1.default.join(process.env.FOP_HOME, isWin ? 'fop.bat' : 'fop') : '',
         ].filter(Boolean);
+        let lastError = e.message;
         for (const fopPath of fopPaths) {
-            try {
-                await execFileAsync(fopPath, ['-fo', foFile, '-pdf', pdfFile]);
-                return await fs_1.default.promises.readFile(pdfFile);
-            }
-            catch {
-                continue;
+            if (fs_1.default.existsSync(fopPath)) {
+                try {
+                    await execFileAsync(fopPath, ['-fo', foFile, '-pdf', pdfFile], { env: process.env });
+                    return await fs_1.default.promises.readFile(pdfFile);
+                }
+                catch (err) {
+                    lastError = err.message;
+                    continue;
+                }
             }
         }
-        // Fallback: generate a structured error PDF using PDFKit-like approach
-        // We'll use a simple node PDF generation as fallback
-        throw new Error('Apache FOP not found. Please install FOP: brew install fop\n' +
-            'Or set the FOP_HOME environment variable to your FOP installation directory.');
+        // Fallback error
+        throw new Error(`Apache FOP failed or not found. (Last Error: ${lastError.substring(0, 100)}...)\n` +
+            'Please install FOP: brew install fop\n' +
+            'Or set the FOP_HOME environment variable.');
     }
 }
 /**
@@ -93,17 +99,21 @@ async function generatePdf(xmlContent, xsltContent) {
     const tmpDir = path_1.default.join(os_1.default.tmpdir(), `xsl-preview-${crypto_1.default.randomBytes(6).toString('hex')}`);
     try {
         await fs_1.default.promises.mkdir(tmpDir, { recursive: true });
+        // Security: Strip DOCTYPE/ENTITY declarations to prevent XXE attacks
+        const sanitize = (content) => content.replace(/<!DOCTYPE[\s\S]*?>/gi, '').replace(/<!ENTITY[\s\S]*?>/gi, '');
+        const cleanXml = sanitize(xmlContent);
+        const cleanXslt = sanitize(xsltContent);
         let foContent;
         // Detect if the xslt input is already XSL-FO (fo:root) or an XSLT stylesheet
-        const isXslFo = xsltContent.trim().includes('fo:root') && !xsltContent.trim().includes('<xsl:stylesheet');
-        const isXslt = xsltContent.trim().includes('<xsl:stylesheet') || xsltContent.trim().includes('<xsl:transform');
+        const isXslFo = cleanXslt.trim().includes('fo:root') && !cleanXslt.trim().includes('<xsl:stylesheet');
+        const isXslt = cleanXslt.trim().includes('<xsl:stylesheet') || cleanXslt.trim().includes('<xsl:transform');
         if (isXslFo) {
             // Direct XSL-FO input - use as-is
-            foContent = xsltContent;
+            foContent = cleanXslt;
         }
         else if (isXslt) {
             // XSLT stylesheet - apply to XML to get XSL-FO
-            foContent = await applyXslt(xmlContent, xsltContent, tmpDir);
+            foContent = await applyXslt(cleanXml, cleanXslt, tmpDir);
         }
         else {
             return {

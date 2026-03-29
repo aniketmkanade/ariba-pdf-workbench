@@ -44,8 +44,8 @@ export function activate(context: vscode.ExtensionContext) {
   // --- AI Chat Logic ---
   const aribaChat = vscode.chat.createChatParticipant('ariba-pdf-preview.ariba', async (request, context, response, token) => {
     const activeEditor = vscode.window.activeTextEditor;
-    if (!activeEditor) {
-        response.markdown('Please open an XSLT file to use the AI assistant.');
+    if (!activeEditor || !isRelevant(activeEditor.document)) {
+        response.markdown('❌ Please focus an XSLT file to use the AI assistant.');
         return;
     }
 
@@ -119,6 +119,17 @@ export function activate(context: vscode.ExtensionContext) {
     const uris = await vscode.window.showOpenDialog({ canSelectMany: false, filters: { 'XML files': ['xml'] } });
     if (uris && uris.length > 0) {
       const dest = vscode.Uri.file(path.join(inputsPath, path.basename(uris[0].fsPath)));
+      if (uris[0].fsPath === dest.fsPath) {
+          vscode.window.showInformationMessage('File is already in the inputs directory.');
+          return;
+      }
+      try {
+          await vscode.workspace.fs.stat(dest);
+          const confirm = await vscode.window.showWarningMessage('File already exists in inputs directory. Overwrite?', { modal: true }, 'Yes');
+          if (confirm !== 'Yes') return;
+      } catch {
+          // file not there
+      }
       await vscode.workspace.fs.copy(uris[0], dest, { overwrite: true });
       sampleProvider.refresh();
     }
@@ -128,7 +139,15 @@ export function activate(context: vscode.ExtensionContext) {
     const folderUri = await vscode.window.showOpenDialog({ canSelectFiles: false, canSelectFolders: true });
     if (folderUri && folderUri.length > 0) {
         const baseDir = folderUri[0];
-        await performExport(vscode.Uri.file(path.join(baseDir.fsPath, 'final_document.pdf')));
+        const targetUri = vscode.Uri.file(path.join(baseDir.fsPath, 'final_document.pdf'));
+        try {
+            await vscode.workspace.fs.stat(targetUri);
+            const confirm = await vscode.window.showWarningMessage('final_document.pdf already exists. Overwrite?', { modal: true }, 'Yes');
+            if (confirm !== 'Yes') return;
+        } catch {
+            // file does not exist
+        }
+        await performExport(targetUri);
         vscode.window.showInformationMessage('Task Finalized and Results Exported.');
     }
   });
@@ -145,20 +164,30 @@ export function activate(context: vscode.ExtensionContext) {
   // --- Utility Commands ---
   let insertSnippetCmd = vscode.commands.registerCommand('ariba-pdf-preview.insertSnippet', (snippet: string) => {
     const activeEditor = vscode.window.activeTextEditor;
-    if (activeEditor) activeEditor.insertSnippet(new vscode.SnippetString(snippet));
+    if (activeEditor && isRelevant(activeEditor.document)) {
+        activeEditor.insertSnippet(new vscode.SnippetString(snippet));
+    } else {
+        vscode.window.showErrorMessage('Snippets can only be inserted into XSLT files.');
+    }
   });
 
   let insertXPathCmd = vscode.commands.registerCommand('ariba-pdf-preview.insertXPath', (xpath: string) => {
     const activeEditor = vscode.window.activeTextEditor;
-    if (activeEditor) activeEditor.insertSnippet(new vscode.SnippetString(`<xsl:value-of select="${xpath}"/>`));
+    if (activeEditor && isRelevant(activeEditor.document)) {
+        activeEditor.insertSnippet(new vscode.SnippetString(`<xsl:value-of select="${xpath}"/>`));
+    } else {
+        vscode.window.showErrorMessage('XPath can only be inserted into XSLT files.');
+    }
   });
 
   let applyXsltCmd = vscode.commands.registerCommand('ariba-pdf-preview.applyXslt', async (newXslt: string) => {
     const activeEditor = vscode.window.activeTextEditor;
-    if (activeEditor) {
+    if (activeEditor && isRelevant(activeEditor.document)) {
       const edit = new vscode.WorkspaceEdit();
       edit.replace(activeEditor.document.uri, new vscode.Range(0, 0, activeEditor.document.lineCount, 0), newXslt);
       await vscode.workspace.applyEdit(edit);
+    } else {
+        vscode.window.showErrorMessage('Cannot apply XSLT. Please focus an active XSLT file.');
     }
   });
 
@@ -181,7 +210,10 @@ export function activate(context: vscode.ExtensionContext) {
 // --- Helpers ---
 async function performExport(uri: vscode.Uri): Promise<void> {
   const activeEditor = vscode.window.activeTextEditor;
-  if (!activeEditor) return;
+  if (!activeEditor || !isRelevant(activeEditor.document)) {
+      vscode.window.showErrorMessage('Please focus an XSLT file to export.');
+      return;
+  }
   const xsltContent = activeEditor.document.getText();
   let xmlContent = SAMPLE_XML;
   if (currentXmlUri) {
@@ -221,7 +253,7 @@ function triggerPreviewUpdate() {
   }, 800);
 }
 
-function isRelevant(doc: vscode.TextDocument) { return doc.languageId === 'xsl' || doc.fileName.endsWith('.xsl'); }
+function isRelevant(doc: vscode.TextDocument) { return doc.languageId === 'xsl' || doc.fileName.endsWith('.xsl') || doc.fileName.endsWith('.xslt'); }
 
 function startBackendServer(context: vscode.ExtensionContext) {
   const serverPath = path.join(context.extensionPath, '..', 'server', 'dist', 'index.js');
