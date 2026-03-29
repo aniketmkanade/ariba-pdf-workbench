@@ -8,13 +8,13 @@
   <Items>
     <Item>
       <LineNum>1</LineNum>
-      <Description>High-End Server Node (Dual Xeon)</Description>
+      <Description>High-End Server Node &lt;b&gt;(Dual Xeon)&lt;/b&gt;</Description>
       <Quantity>120</Quantity>
       <UnitPrice>1500.00</UnitPrice>
     </Item>
     <Item>
       <LineNum>2</LineNum>
-      <Description>Managed Switch 48-Port (10GbE)</Description>
+      <Description>Managed Switch 48-Port (10GbE) with advanced features including VLAN support, QoS, and security protocols for enterprise networking environments that require high performance and reliability in data center operations.</Description>
       <Quantity>45</Quantity>
       <UnitPrice>850.50</UnitPrice>
     </Item>

@@ -4,6 +4,8 @@ import cors from 'cors';
 import previewRouter from './routes/preview';
 import aiRouter from './routes/ai';
 
+import validateRouter from './routes/validate';
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -13,6 +15,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use('/api/preview', previewRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/validate', validateRouter);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

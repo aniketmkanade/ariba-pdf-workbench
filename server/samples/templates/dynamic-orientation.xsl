@@ -75,6 +75,21 @@
         </fo:flow>
       </fo:page-sequence>
 
+      <!-- Conclusion section (always portrait) -->
+      <fo:page-sequence master-reference="portrait">
+        <fo:static-content flow-name="header">
+          <fo:block font-size="14pt" font-weight="bold" text-align="center">Conclusion</fo:block>
+        </fo:static-content>
+        <fo:static-content flow-name="footer">
+          <fo:block text-align="center">Page <fo:page-number/></fo:block>
+        </fo:static-content>
+        <fo:flow flow-name="xsl-region-body">
+          <fo:block font-size="12pt">
+            This concludes the report. The details section was rendered in <xsl:value-of select="$detailsMaster"/> orientation.
+          </fo:block>
+        </fo:flow>
+      </fo:page-sequence>
+
     </fo:root>
   </xsl:template>
 

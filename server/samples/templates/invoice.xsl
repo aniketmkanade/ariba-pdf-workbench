@@ -34,6 +34,20 @@
     </xsl:choose>
   </xsl:template>
 
+  <!-- Template to truncate description to approx 3 lines (150 chars) -->
+  <xsl:template name="truncate-description">
+    <xsl:param name="text"/>
+    <xsl:variable name="maxChars" select="150"/>
+    <xsl:choose>
+      <xsl:when test="string-length($text) > $maxChars">
+        <xsl:value-of select="concat(substring($text, 1, $maxChars - 3), '...')"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="$text"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
   <!-- Root template -->
   <xsl:template match="/Invoice">
     <xsl:variable name="pageMaster">
@@ -177,7 +191,19 @@
                   <!-- Description -->
                   <fo:table-cell border="1pt solid #cccccc" padding="4pt" 
                                  display-align="before" text-align="left">
-                    <fo:block font-size="9pt"><xsl:value-of select="Description"/></fo:block>
+                    <xsl:variable name="desc" select="Description"/>
+                    <xsl:variable name="hasTag" select="contains($desc, '&lt;') or contains($desc, '&gt;')"/>
+                    <fo:block font-size="9pt" max-height="3.6em" overflow="hidden">
+                      <xsl:if test="$hasTag">
+                        <xsl:attribute name="background-color">#ffe6e6</xsl:attribute>
+                      </xsl:if>
+                      <xsl:call-template name="truncate-description">
+                        <xsl:with-param name="text" select="$desc"/>
+                      </xsl:call-template>
+                      <xsl:if test="$hasTag">
+                        <fo:inline font-weight="bold" color="red"> ⚠️</fo:inline>
+                      </xsl:if>
+                    </fo:block>
                   </fo:table-cell>
                   
                   <!-- Quantity (highlighted if > 100) -->

@@ -20,9 +20,24 @@ router.post('/', async (req: Request, res: Response) => {
     return;
   }
 
-  const result = await generatePdf(xml, xslt);
+  const controller = new AbortController();
+  req.on('close', () => {
+    controller.abort();
+  });
+
+  const result = await generatePdf(xml, xslt, controller.signal);
+
+  // If the request was aborted, don't try to send a response
+  if (controller.signal.aborted) {
+    return;
+  }
 
   if (!result.success || !result.pdfBuffer) {
+    // Check if the error is just an AbortError from child process
+    if (result.details && result.details.includes('AbortError')) {
+      return;
+    }
+    
     res.status(500).json({
       success: false,
       error: result.error || 'Unknown error',

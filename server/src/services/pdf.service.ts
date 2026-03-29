@@ -35,7 +35,7 @@ export function validateXml(xml: string): { valid: boolean; error?: string } {
  * Applies an XSLT stylesheet to an XML document using xsltproc.
  * Returns the resulting XSL-FO string.
  */
-async function applyXslt(xmlContent: string, xsltContent: string, tmpDir: string): Promise<string> {
+async function applyXslt(xmlContent: string, xsltContent: string, tmpDir: string, signal?: AbortSignal): Promise<string> {
   const xmlFile = path.join(tmpDir, 'input.xml');
   const xsltFile = path.join(tmpDir, 'template.xsl');
   const foFile = path.join(tmpDir, 'output.fo');
@@ -44,7 +44,7 @@ async function applyXslt(xmlContent: string, xsltContent: string, tmpDir: string
   await fs.promises.writeFile(xsltFile, xsltContent, 'utf8');
 
   try {
-    await execFileAsync('xsltproc', ['--nonet', '-o', foFile, xsltFile, xmlFile]);
+    await execFileAsync('xsltproc', ['--nonet', '-o', foFile, xsltFile, xmlFile], { signal });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`XSLT transformation failed: ${msg}`);
@@ -58,7 +58,7 @@ async function applyXslt(xmlContent: string, xsltContent: string, tmpDir: string
  * Converts XSL-FO content to PDF using Apache FOP (if available),
  * else falls back to a pre-built FO-to-PDF stub for preview.
  */
-async function foToPdf(foContent: string, tmpDir: string): Promise<Buffer> {
+async function foToPdf(foContent: string, tmpDir: string, signal?: AbortSignal): Promise<Buffer> {
   const foFile = path.join(tmpDir, 'output.fo');
   const pdfFile = path.join(tmpDir, 'output.pdf');
 
@@ -66,7 +66,7 @@ async function foToPdf(foContent: string, tmpDir: string): Promise<Buffer> {
 
   // Try Apache FOP first
   try {
-    await execFileAsync('fop', ['-fo', foFile, '-pdf', pdfFile], { env: process.env });
+    await execFileAsync('fop', ['-fo', foFile, '-pdf', pdfFile], { env: process.env, signal });
     return await fs.promises.readFile(pdfFile);
   } catch (e: any) {
     // FOP not in PATH - try fop from common install locations
@@ -83,7 +83,7 @@ async function foToPdf(foContent: string, tmpDir: string): Promise<Buffer> {
     for (const fopPath of fopPaths) {
       if (fs.existsSync(fopPath)) {
         try {
-          await execFileAsync(fopPath, ['-fo', foFile, '-pdf', pdfFile], { env: process.env });
+          await execFileAsync(fopPath, ['-fo', foFile, '-pdf', pdfFile], { env: process.env, signal });
           return await fs.promises.readFile(pdfFile);
         } catch (err: any) {
           lastError = err.message;
@@ -108,7 +108,8 @@ async function foToPdf(foContent: string, tmpDir: string): Promise<Buffer> {
  */
 export async function generatePdf(
   xmlContent: string,
-  xsltContent: string
+  xsltContent: string,
+  signal?: AbortSignal
 ): Promise<PdfResult> {
   const tmpDir = path.join(os.tmpdir(), `xsl-preview-${crypto.randomBytes(6).toString('hex')}`);
 
@@ -131,7 +132,7 @@ export async function generatePdf(
       foContent = cleanXslt;
     } else if (isXslt) {
       // XSLT stylesheet - apply to XML to get XSL-FO
-      foContent = await applyXslt(cleanXml, cleanXslt, tmpDir);
+      foContent = await applyXslt(cleanXml, cleanXslt, tmpDir, signal);
     } else {
       return {
         success: false,
@@ -140,7 +141,7 @@ export async function generatePdf(
       };
     }
 
-    const pdfBuffer = await foToPdf(foContent, tmpDir);
+    const pdfBuffer = await foToPdf(foContent, tmpDir, signal);
 
     return { success: true, pdfBuffer };
   } catch (err: unknown) {

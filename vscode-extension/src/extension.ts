@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import axios from 'axios';
+import axios, { CancelTokenSource } from 'axios';
 import { TextDecoder } from 'util';
 import * as path from 'path';
 import * as child_process from 'child_process';
@@ -123,6 +123,23 @@ export function activate(context: vscode.ExtensionContext) {
           vscode.window.showInformationMessage('File is already in the inputs directory.');
           return;
       }
+
+      try {
+          const data = await vscode.workspace.fs.readFile(uris[0]);
+          const xmlContent = new TextDecoder().decode(data);
+          const valRes = await axios.post(`http://localhost:${PORT}/api/validate`, { xml: xmlContent });
+          if (!valRes.data.valid) {
+              const errors = valRes.data.errors?.join('\n') || 'Unknown error';
+              const schemaMsg = valRes.data.schemaApplied ? 'Strict Schema Validation Failed' : 'XML Parsing Failed';
+              const proceed = await vscode.window.showWarningMessage(`${schemaMsg}: ${errors.substring(0, 300)}...\n\nDo you still want to upload?`, { modal: true }, 'Yes', 'No');
+              if (proceed !== 'Yes') return;
+          } else if (valRes.data.schemaApplied) {
+              vscode.window.showInformationMessage('XML passed strict schema validation! ✅');
+          }
+      } catch (err: any) {
+          console.error('Validation request failed', err);
+      }
+
       try {
           await vscode.workspace.fs.stat(dest);
           const confirm = await vscode.window.showWarningMessage('File already exists in inputs directory. Overwrite?', { modal: true }, 'Yes');
@@ -228,8 +245,13 @@ async function performExport(uri: vscode.Uri): Promise<void> {
   }
 }
 
+let cancelTokenSource: CancelTokenSource | undefined;
+
 function triggerPreviewUpdate() {
   if (debounceTimeout) clearTimeout(debounceTimeout);
+  if (cancelTokenSource) {
+      cancelTokenSource.cancel('User is still typing; superseded by new preview request.');
+  }
   debounceTimeout = setTimeout(async () => {
     if (!currentPanel) return;
     const activeEditor = vscode.window.activeTextEditor;
@@ -242,11 +264,20 @@ function triggerPreviewUpdate() {
             xmlContent = new TextDecoder().decode(data);
         } catch (e) { console.error('Failed to read XML'); }
     }
+    
+    cancelTokenSource = axios.CancelToken.source();
     try {
-      const res = await axios.post(API_URL, { xml: xmlContent, xslt: xsltContent }, { responseType: 'arraybuffer' });
+      const res = await axios.post(API_URL, { xml: xmlContent, xslt: xsltContent }, { 
+          responseType: 'arraybuffer',
+          cancelToken: cancelTokenSource.token
+      });
       const dataUri = `data:application/pdf;base64,${Buffer.from(res.data).toString('base64')}`;
       currentPanel.webview.html = getWebviewContent(currentPanel.webview, dataUri);
     } catch (e: any) {
+      if (axios.isCancel(e)) {
+          console.log('Request canceled:', e.message);
+          return; // Do not update UI if aborted
+      }
       const errorMsg = e.response?.data ? new TextDecoder().decode(e.response.data) : (e.message || 'Unknown Rendering Error');
       currentPanel.webview.html = getWebviewContent(currentPanel.webview, '', errorMsg);
     }
