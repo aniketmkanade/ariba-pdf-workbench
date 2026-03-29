@@ -63,6 +63,39 @@ export class AribaSnippetProvider implements vscode.TreeDataProvider<SnippetItem
 </fo:block>`,
             vscode.TreeItemCollapsibleState.None,
             'footer'
+        ),
+        new SnippetItem(
+            'HU Hierarchy (Nested)',
+            'Recursive grouping for Handling Units',
+            `<fo:block border-left="2pt solid #003366" padding-left="10pt" margin-bottom="5pt">
+    <fo:block font-weight="bold" font-size="11pt" color="#003366">
+        Handling Unit: <xsl:value-of select="@huID"/> (<xsl:value-of select="@type"/>)
+    </fo:block>
+    <fo:block font-size="9pt">Weight: <xsl:value-of select="Weight"/> <xsl:value-of select="Weight/@unit"/></fo:block>
+    <!-- Recursive call for children HUs -->
+    <xsl:apply-templates select="HandlingUnit"/>
+    <xsl:for-each select="Contents/Item">
+        <fo:block font-style="italic" margin-left="10pt">• Item: <xsl:value-of select="@itemID"/> (Qty: <xsl:value-of select="@quantity"/>)</fo:block>
+    </xsl:for-each>
+</fo:block>`,
+            vscode.TreeItemCollapsibleState.None,
+            'asn'
+        ),
+        new SnippetItem(
+            'Tax Calculation Row',
+            'Dynamic tax calculation and row display',
+            `<fo:table-row border-top="1pt solid #444">
+    <fo:table-cell padding="4pt" number-columns-spanned="2">
+        <fo:block text-align="right" font-weight="bold">Tax (15%):</fo:block>
+    </fo:table-cell>
+    <fo:table-cell padding="4pt">
+        <fo:block font-weight="bold">
+            <xsl:value-of select="format-number(TotalAmount * 0.15, '$#,##0.00')"/>
+        </fo:block>
+    </fo:table-cell>
+</fo:table-row>`,
+            vscode.TreeItemCollapsibleState.None,
+            'po'
         )
     ];
 

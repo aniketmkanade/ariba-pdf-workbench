@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "npm run package --prefix vscode-extension",
     "build:server": "npm run build --prefix server",
+    "benchmark": "ts-node src/benchmarks/accuracy.ts",
     "package:extension": "npm run package --prefix vscode-extension",
     "install:all": "npm install --prefix server && npm install --prefix vscode-extension"
   }

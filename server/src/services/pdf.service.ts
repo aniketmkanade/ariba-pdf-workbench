@@ -66,10 +66,10 @@ async function foToPdf(foContent: string, tmpDir: string): Promise<Buffer> {
 
   // Try Apache FOP first
   try {
-    await execFileAsync('fop', ['-fo', foFile, '-pdf', pdfFile]);
+    await execFileAsync('fop', ['-fo', foFile, '-pdf', pdfFile], { env: process.env });
     return await fs.promises.readFile(pdfFile);
-  } catch {
-    // FOP not installed - try fop from common install locations
+  } catch (e: any) {
+    // FOP not in PATH - try fop from common install locations
     const isWin = process.platform === 'win32';
     const fopCmd = isWin ? 'fop.bat' : 'fop';
     
@@ -79,20 +79,24 @@ async function foToPdf(foContent: string, tmpDir: string): Promise<Buffer> {
       process.env.FOP_HOME ? path.join(process.env.FOP_HOME, isWin ? 'fop.bat' : 'fop') : '',
     ].filter(Boolean);
 
+    let lastError = e.message;
     for (const fopPath of fopPaths) {
-      try {
-        await execFileAsync(fopPath, ['-fo', foFile, '-pdf', pdfFile]);
-        return await fs.promises.readFile(pdfFile);
-      } catch {
-        continue;
+      if (fs.existsSync(fopPath)) {
+        try {
+          await execFileAsync(fopPath, ['-fo', foFile, '-pdf', pdfFile], { env: process.env });
+          return await fs.promises.readFile(pdfFile);
+        } catch (err: any) {
+          lastError = err.message;
+          continue;
+        }
       }
     }
 
-    // Fallback: generate a structured error PDF using PDFKit-like approach
-    // We'll use a simple node PDF generation as fallback
+    // Fallback error
     throw new Error(
-      'Apache FOP not found. Please install FOP: brew install fop\n' +
-      'Or set the FOP_HOME environment variable to your FOP installation directory.'
+      `Apache FOP failed or not found. (Last Error: ${lastError.substring(0, 100)}...)\n` +
+      'Please install FOP: brew install fop\n' +
+      'Or set the FOP_HOME environment variable.'
     );
   }
 }

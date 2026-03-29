@@ -43,24 +43,39 @@ export function activate(context: vscode.ExtensionContext) {
 
   // --- AI Chat Logic ---
   const aribaChat = vscode.chat.createChatParticipant('ariba-pdf-preview.ariba', async (request, context, response, token) => {
-    const userPrompt = request.prompt;
-    let systemInstruction = `You are the Ariba PDF Expert. You generate high-quality XSL-FO 1.1.`;
-    
-    if (request.command === 'table') {
-        systemInstruction += ` Focus on generating a professional <fo:table> with headers and dynamic xsl:for-each rows.`;
-        response.progress('Designing your professional FO table...');
+    const activeEditor = vscode.window.activeTextEditor;
+    if (!activeEditor) {
+        response.markdown('Please open an XSLT file to use the AI assistant.');
+        return;
     }
 
+    const xslt = activeEditor.document.getText();
+    let xml = SAMPLE_XML;
+    if (currentXmlUri) {
+        const data = await vscode.workspace.fs.readFile(currentXmlUri);
+        xml = new TextDecoder().decode(data);
+    }
+
+    const userPrompt = request.prompt;
+    response.progress('Ariba PDF AI is analyzing your template and data...');
+
     try {
-      const res = await axios.post(OLLAMA_URL, {
-        model: 'mistral',
-        prompt: `${systemInstruction}\nUser: ${userPrompt}\nAssistant:`,
-        stream: false
+      const res = await axios.post(`http://localhost:${PORT}/api/ai/chat`, {
+        prompt: userPrompt,
+        xslt,
+        xml
       });
-      response.markdown(res.data.response);
-      response.button({ command: 'ariba-pdf-preview.applyXslt', title: 'Apply Proposed Layout', arguments: [res.data.response] });
+      
+      const { xslt: newXslt, message } = res.data;
+      response.markdown(`${message}\n\n`);
+      response.button({ 
+        command: 'ariba-pdf-preview.applyXslt', 
+        title: 'Apply Optimized Layout', 
+        arguments: [newXslt] 
+      });
     } catch (err: any) {
-      response.markdown(`❌ AI Service Offline. Ensure Ollama is running.`);
+      const msg = err.response?.data?.error || err.message;
+      response.markdown(`❌ AI Assistant Error: ${msg}\n\nEnsure the Ariba PDF server is running and Ollama is active.`);
     }
   });
 
@@ -199,7 +214,10 @@ function triggerPreviewUpdate() {
       const res = await axios.post(API_URL, { xml: xmlContent, xslt: xsltContent }, { responseType: 'arraybuffer' });
       const dataUri = `data:application/pdf;base64,${Buffer.from(res.data).toString('base64')}`;
       currentPanel.webview.html = getWebviewContent(currentPanel.webview, dataUri);
-    } catch (e) { console.error('Preview failed'); }
+    } catch (e: any) {
+      const errorMsg = e.response?.data ? new TextDecoder().decode(e.response.data) : (e.message || 'Unknown Rendering Error');
+      currentPanel.webview.html = getWebviewContent(currentPanel.webview, '', errorMsg);
+    }
   }, 800);
 }
 
@@ -210,12 +228,18 @@ function startBackendServer(context: vscode.ExtensionContext) {
   serverProcess = child_process.spawn('node', [serverPath], { env: { ...process.env, PORT: PORT.toString() } });
 }
 
-function getWebviewContent(webview: vscode.Webview, pdfUri: string) {
+function getWebviewContent(webview: vscode.Webview, pdfUri: string, error?: string) {
   const xmlName = currentXmlUri ? path.basename(currentXmlUri.fsPath) : 'SAMPLE_DATA';
+  const displayError = error ? `
+    <div id="error-overlay" style="position: absolute; top: 64px; left: 16px; right: 16px; background: rgba(200, 0, 0, 0.9); color: white; padding: 12px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 1000; font-family: monospace; white-space: pre-wrap;">
+        <div style="font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 4px;">⚠️ RENDERING ERROR</div>
+        ${error}
+    </div>` : '';
+
   return `<!DOCTYPE html><html lang="en"><head>
   <style>
     :root { --bg: #1e1e1e; --side: #252526; --accent: #007acc; --border: #444; --text: #cccccc; }
-    body { margin: 0; padding: 0; width: 100vw; height: 100vh; background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; flex-direction: column; overflow: hidden; }
+    body { margin: 0; padding: 0; width: 100vw; height: 100vh; background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; flex-direction: column; overflow: hidden; position: relative; }
     .status { height: 24px; background: var(--accent); color: white; display: flex; align-items: center; padding: 0 12px; font-size: 11px; gap: 12px; }
     .toolbar { height: 40px; background: var(--side); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 16px; gap: 8px; }
     .spacer { flex: 1; }
@@ -225,8 +249,9 @@ function getWebviewContent(webview: vscode.Webview, pdfUri: string) {
     .preview { flex: 1; background: #525659; }
     iframe { width: 100%; height: 100%; border: none; }
   </style></head><body>
+  ${displayError}
   <div class="toolbar">
-    <div style="font-weight: bold; font-size: 12px; color: var(--accent);">ARIBA WORKBENCH v5.0</div>
+    <div style="font-weight: bold; font-size: 12px; color: var(--accent);">ARIBA WORKBENCH v6.0</div>
     <div style="background: #2d2d2d; border-radius: 4px; padding: 2px 8px; font-size: 9px; border: 1px solid var(--border); margin-left: 12px;">DATA: ${xmlName}</div>
     <div class="spacer"></div>
     <button class="btn" onclick="vscode.postMessage({command:'view-external'})">Open in Browser</button>

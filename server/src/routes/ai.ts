@@ -18,7 +18,7 @@ router.post('/chat', async (req: Request, res: Response) => {
 
   try {
     const result = await generateXsltFromPrompt(prompt, xslt, xml);
-    res.json({ success: true, xslt: result.xslt, message: result.message });
+    res.json({ success: true, xslt: result.xslt, message: result.message, docType: result.docType });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message || 'AI generation failed' });
   }
