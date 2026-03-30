@@ -214,28 +214,70 @@ export function activate(context: vscode.ExtensionContext) {
       const edit = new vscode.WorkspaceEdit();
       const document = activeEditor.document;
 
+      // FIX 2 & 3: Normalize line endings and get full text with safe bounds
+      const rawText = document.getText();
+      const text = rawText.replace(/\r\n/g, '\n');
+      const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(rawText.length));
+
       if (typeof payload === 'string') {
-          // Backward compatibility
-          edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), payload);
+          // Backward compatibility — direct string overwrite
+          edit.replace(document.uri, fullRange, payload);
       } else if (payload.fullText || !payload.diffs || payload.diffs.length === 0) {
-          // Full replacement override from AI fallback
-          edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), payload.newXslt);
+          // Full replacement override from AI fallback (FIX 3 applied)
+          edit.replace(document.uri, fullRange, payload.newXslt);
       } else {
-          // Diff application
-          const text = document.getText();
+          // FIX 1 & 2: Diff application with ambiguity guard and line-ending normalization
           let missingDiffs = 0;
+          let ambiguousDiffs = 0;
+          
+          // Helper to map normalized index back to rawText offset
+          const getRealOffset = (normalizedTarget: number): number => {
+              let currentNormalized = 0;
+              let currentRaw = 0;
+              while (currentNormalized < normalizedTarget && currentRaw < rawText.length) {
+                  if (rawText[currentRaw] !== '\r') {
+                      currentNormalized++;
+                  }
+                  currentRaw++;
+              }
+              // Skip any trailing \r before the target character if it landed on one
+              while (currentRaw < rawText.length && rawText[currentRaw] === '\r') {
+                  currentRaw++;
+              }
+              return currentRaw;
+          };
+
           for (const diff of payload.diffs) {
-              const searchIndex = text.indexOf(diff.search);
-              if (searchIndex !== -1) {
-                  const startPos = document.positionAt(searchIndex);
-                  const endPos = document.positionAt(searchIndex + diff.search.length);
-                  edit.replace(document.uri, new vscode.Range(startPos, endPos), diff.replace);
-              } else {
+              const normalizedSearch = diff.search.replace(/\r\n/g, '\n');
+              const normalizedReplace = diff.replace.replace(/\r\n/g, '\n');
+
+              let occurrences = 0;
+              let pos = 0;
+              while ((pos = text.indexOf(normalizedSearch, pos)) !== -1) {
+                  occurrences++;
+                  pos++;
+              }
+
+              if (occurrences === 0) {
                   missingDiffs++;
+              } else if (occurrences > 1) {
+                  ambiguousDiffs++;
+              } else {
+                  const normalizedIndex = text.indexOf(normalizedSearch);
+                  const startOffset = getRealOffset(normalizedIndex);
+                  const endOffset = getRealOffset(normalizedIndex + normalizedSearch.length);
+                  
+                  edit.replace(document.uri, new vscode.Range(document.positionAt(startOffset), document.positionAt(endOffset)), normalizedReplace);
               }
           }
+          
+          if (ambiguousDiffs > 0) {
+              vscode.window.showWarningMessage(
+                `AI generated ${ambiguousDiffs} ambiguous patch(es). Those patches were skipped to avoid errors. Try being more specific in your prompt.`
+              );
+          }
           if (missingDiffs > 0) {
-              vscode.window.showWarningMessage(`Could not cleanly apply ${missingDiffs} patch(es). The document may have changed.`);
+              vscode.window.showWarningMessage(`Could not find ${missingDiffs} patch location(s). The document may have changed.`);
           }
       }
       

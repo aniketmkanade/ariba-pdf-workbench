@@ -1,3 +1,27 @@
-<Notes>
-  <Note>This is a sample note text that is relatively short and should display normally without any truncation or highlighting.</Note>
-</Notes>
+<Document>
+  <Cover>
+    <Title>Service Entry Sheet</Title>
+  </Cover>
+  <Pages>
+    <Page>
+      <Title>1. Introduction</Title>
+      <Content>This is the introduction section for the service entry sheet. It provides an overview of the document structure and purpose. The cover page displays the title without any headers or footers, demonstrating the distinct layout for the first page.</Content>
+    </Page>
+    <Page>
+      <Title>2. Service Overview</Title>
+      <Content>This page contains details about the services provided. Notice that this page displays the page number and generation date in the footer. The footer behavior is automatically applied to all content pages following the cover page.</Content>
+    </Page>
+    <Page>
+      <Title>3. Detailed Specifications</Title>
+      <Content>Here we present the detailed specifications of the service. Each page maintains consistent formatting with the page number and date in the footer region. This ensures professional appearance across all pages.</Content>
+    </Page>
+    <Page>
+      <Title>4. Implementation Timeline</Title>
+      <Content>The implementation timeline outlines the phases and milestones for service delivery. Conditional footer behavior ensures that the last page of the report displays the additional "*** END OF REPORT ***" marker, distinguishing it from regular content pages.</Content>
+    </Page>
+    <Page>
+      <Title>5. Terms and Conditions</Title>
+      <Content>This final page contains the terms and conditions applicable to the service. Being the last page, it displays both the page number/date footer AND the "*** END OF REPORT ***" message, indicating the end of the document. This demonstrates conditional footer behavior based on page position.</Content>
+    </Page>
+  </Pages>
+</Document>
