@@ -1,0 +1,10 @@
+# AI Agent Instructions for Ariba PDF Workbench
+
+## 🔒 Restricted Directories
+Under no circumstances are you (the AI Agent) allowed to modify, overwrite, delete, or append data to any files in the following directories:
+- `server/samples/inputs/*`
+- `server/samples/schemas/*`
+
+**Reasoning:** In an Enterprise Ariba environment, XML inputs and XML schemas represent canonical, immutable backend data truth. Any formatting issues during PDF generation MUST be solved purely through dynamic conditional logic inside the XSLT `templates` folder.
+
+If a layout requires more data to test page-overflows or looping, you must explicitly instruct the human user to add mock data to the `inputs` XML themselves. Do NOT attempt to "help" by altering the dataset.
