@@ -12,11 +12,12 @@
 2. [Installation — macOS](#2-installation--macos)
 3. [Installation — Windows](#3-installation--windows)
 4. [Install the VSCode Extension](#4-install-the-vscode-extension)
-5. [Start the Backend Server](#5-start-the-backend-server)
+5. [Running the Workbench (One-Click)](#5-running-the-workbench-one-click)
 6. [Using the Workbench](#6-using-the-workbench)
 7. [Permissions Required](#7-permissions-required)
 8. [AI Prompting Guide for Ariba XSL-FO](#8-ai-prompting-guide-for-ariba-xsl-fo)
-9. [Troubleshooting](#9-troubleshooting)
+9. [System Diagnostic (Ariba Doctor)](#9-system-diagnostic-ariba-doctor)
+10. [Troubleshooting](#10-troubleshooting)
 
 ---
 
@@ -24,15 +25,15 @@
 
 Before starting, make sure you have or can install the following. All are **free**.
 
-| Tool | Purpose | Required? |
+| Tool | Purpose | Download Link |
 | :--- | :--- | :--- |
-| **Node.js v18+** | Runs the PDF generation server | ✅ Yes |
-| **Java 8+** (JDK or JRE) | Required by Apache FOP for PDF rendering | ✅ Yes |
-| **Apache FOP 2.x** | Converts XSL-FO templates into PDF files | ✅ Yes |
-| **xsltproc** | Applies XSLT stylesheets to XML data | ✅ Yes |
-| **Ollama** | Runs the local AI model for template generation | ✅ Yes |
-| **VSCode** (1.90+) | The IDE this extension runs inside | ✅ Yes |
-| **Git** | Clone the repository | ✅ Yes |
+| **Node.js v18+** | Runs the PDF generation server | [Download Node.js](https://nodejs.org/en/download) |
+| **Java 8+** (JDK) | Required by Apache FOP | [Download OpenJDK](https://adoptium.net/temurin/releases/) |
+| **Apache FOP 2.9** | Converts XSL-FO to PDF | [Download FOP](https://xmlgraphics.apache.org/fop/download.html) |
+| **xsltproc** | Applies XSLT to XML | [Download (Win)](https://www.zlatkovic.com/libxml.en.html) / `brew install libxslt` |
+| **Ollama** | Runs Local AI model | [Download Ollama](https://ollama.com/download) |
+| **VSCode** (1.90+) | The IDE | [Download VSCode](https://code.visualstudio.com/) |
+| **Git** | Clones the repository | [Download Git](https://git-scm.com/downloads) |
 
 > ⚠️ **Corporate / VPN users:** Your IT team may need to whitelist `registry.npmjs.org`, `ollama.com`, and `github.com` for downloads to work. See [Section 7 – Permissions](#7-permissions-required).
 
@@ -345,33 +346,20 @@ npm install --prefix vscode-extension --legacy-peer-deps
 
 ---
 
-## 5. Start the Backend Server
+## 5. Running the Workbench (One-Click)
 
-The backend server must be running for PDF generation and AI to work.
+Instead of running manual terminal commands, use the provided one-click scripts to launch everything at once.
 
-**macOS:**
-
+### 🍏 On macOS / Linux
+Double-click `start.sh` or run in terminal:
 ```bash
-cd ariba-pdf-workbench/server
-npm run dev
+./start.sh
 ```
+This will verify Ollama is running, start the Backend Server, and open the project in VS Code.
 
-**Windows (PowerShell):**
-
-```powershell
-cd ariba-pdf-workbench\server
-npm run dev
-```
-
-You should see:
-
-```
-🚀 Ariba PDF Server running on http://localhost:3001
-```
-
-> ⚠️ **Keep this terminal open** while using the extension. If you close it, the preview will stop working.
-
-> 💡 **Port conflict?** If port 3001 is already in use, edit `server/src/index.ts` and change the PORT value, then also update the `PORT` constant in `vscode-extension/src/extension.ts` to match.
+### 🪟 On Windows
+Double-click `start.bat`.
+This will verify Ollama, start the Backend Server in a new CMD window, and launch VS Code.
 
 ---
 
@@ -499,7 +487,20 @@ Because XSL-FO is highly layout-driven, tell the AI exactly *where* to put thing
 
 ---
 
-## 9. Troubleshooting
+## 9. System Diagnostic (Ariba Doctor)
+
+If the PDF preview fails to load or the AI is not responding, use the built-in diagnostic tool to find the exact issue.
+
+1. Open the project in VS Code.
+2. Press `Cmd+Shift+P` (Mac) or `Ctrl+Shift+P` (Windows).
+3. Type: `Ariba: Run System Check (Doctor)`.
+4. Press Enter.
+
+A new output window will open showing the status of Java, FOP, Node, and the AI service. If you see a **❌**, follow the instructions in that line to fix your system path.
+
+---
+
+## 10. Troubleshooting
 
 ### ❌ "Preview panel shows nothing"
 

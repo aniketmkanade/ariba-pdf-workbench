@@ -287,6 +287,48 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
+  let runDoctorCmd = vscode.commands.registerCommand('ariba-pdf-preview.runDoctor', async () => {
+    const output = vscode.window.createOutputChannel("Ariba PDF Doctor");
+    output.show();
+    output.appendLine("🩺 Ariba PDF Workbench System Diagnostic");
+    output.appendLine("==========================================");
+
+    const checkCmd = (name: string, cmd: string): Promise<boolean> => {
+      return new Promise((resolve) => {
+        child_process.exec(cmd, (err, stdout) => {
+          if (err) {
+            output.appendLine(`❌ ${name}: NOT FOUND. Please install and add to PATH.`);
+            resolve(false);
+          } else {
+            const firstLine = stdout.split('\n').filter(l => l.trim().length > 0)[0] || "";
+            output.appendLine(`✅ ${name}: Found (${firstLine.trim()})`);
+            resolve(true);
+          }
+        });
+      });
+    };
+
+    const checkUrl = async (name: string, url: string): Promise<boolean> => {
+      try {
+        await axios.get(url, { timeout: 2000 });
+        output.appendLine(`✅ ${name}: Running and accessible.`);
+        return true;
+      } catch (err) {
+        output.appendLine(`❌ ${name}: NOT REACHABLE at ${url}.`);
+        return false;
+      }
+    };
+
+    await checkCmd("Node.js", "node -v");
+    await checkCmd("Java", "java -version 2>&1");
+    await checkCmd("xsltproc", "xsltproc --version | head -n 1");
+    await checkCmd("Apache FOP", "fop -version");
+    await checkUrl("Ollama AI Service", "http://localhost:11434/api/tags");
+    await checkUrl("Backend Server", `http://localhost:${PORT}/api/samples`);
+
+    output.appendLine("\nDiagnostic Complete.");
+  });
+
   let openSampleCmd = vscode.commands.registerCommand('ariba-pdf-preview.openSample', (uri: vscode.Uri) => {
     currentXmlUri = uri;
     if (currentPanel) triggerPreviewUpdate();
@@ -295,7 +337,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     openPreviewCmd, viewExternalCmd, exportPdfCmd, refreshSamplesCmd, 
     uploadXmlCmd, finalizeTaskCmd, resetWorkspaceCmd, 
-    insertSnippetCmd, insertXPathCmd, applyXsltCmd, openSampleCmd
+    insertSnippetCmd, insertXPathCmd, applyXsltCmd, openSampleCmd, runDoctorCmd
   );
 
   // Status monitoring

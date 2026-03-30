@@ -3,7 +3,7 @@
   "displayName": "Ariba PDF Live Preview",
   "description": "Live PDF Preview for Ariba XSL-FO templates",
   "publisher": "sap-ariba-innovation",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -68,6 +68,12 @@
         "command": "ariba-pdf-preview.resetWorkspace",
         "title": "New Task (Reset All)",
         "icon": "$(trash)"
+      },
+      {
+        "command": "ariba-pdf-preview.runDoctor",
+        "title": "Ariba: Run System Check (Doctor)",
+        "category": "Ariba PDF",
+        "icon": "$(heart)"
       }
     ],
     "menus": {
@@ -165,7 +171,7 @@
   },
   "devDependencies": {
     "@types/node": "20.x",
-    "@types/vscode": "^1.110.0",
+    "@types/vscode": "^1.90.0",
     "ts-loader": "^9.5.1",
     "typescript": "^5.4.5",
     "webpack": "^5.91.0",
