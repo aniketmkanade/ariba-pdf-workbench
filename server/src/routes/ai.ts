@@ -16,6 +16,20 @@ router.post('/chat', async (req: Request, res: Response) => {
     return;
   }
 
+  // Identity intercept: prevent model from hallucinating its own name
+  const identityKeywords = ['who are you', 'what are you', 'what model', 'which model', 'what ai', 'which ai', 'your name', 'claude', 'haiku', 'gpt', 'gemini', 'llama'];
+  const lowerPrompt = prompt.toLowerCase();
+  if (identityKeywords.some(kw => lowerPrompt.includes(kw))) {
+    res.json({
+      success: true,
+      message: 'I am the **Ariba PDF Workbench AI** — a specialized local assistant for SAP Ariba PDF engineering, powered by **Qwen 2.5 Coder 7B** running privately on your machine via Ollama. I do not send any data externally.',
+      xslt,
+      diffs: [],
+      fullText: false
+    });
+    return;
+  }
+
   try {
     const result = await generateXsltFromPrompt(prompt, xslt, xml, history);
     res.json({ success: true, diffs: result.diffs, fullText: result.fullText, xslt: result.xslt, message: result.message, docType: result.docType });
